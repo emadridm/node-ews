@@ -1,6 +1,6 @@
 {
   "name": "node-ews",
-  "version": "2.1.5",
+  "version": "2.2.0",
   "description": "A simple JSON wrapper for the Exchange Web Services (EWS) SOAP API",
   "main": "./index.js",
   "scripts": {
@@ -9,11 +9,12 @@
   "author": "Nicholas Marus",
   "license": "MIT",
   "dependencies": {
-    "httpntlm": "^1.6.1",
-    "lodash": "^4.14.1",
+    "httpntlm": "1.6.1",
+    "lodash": "4.14.1",
+    "request": "2.75.0",
     "soap": "^0.13.0",
-    "tmp": "^0.0.28",
-    "when": "^3.7.7"
+    "tmp": "0.0.28",
+    "when": "3.7.7"
   },
   "repository": {
     "type": "git",
