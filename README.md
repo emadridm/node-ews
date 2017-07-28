@@ -5,27 +5,31 @@
 npm install node-ews
 ```
 
-#### Updates in version 2.0.0
+#### Updates in patch 3.1.0 (new)
+- Merged PR #46 to add support for bearer auth.
 
-- Removed xml2js dependancy and using XML parser built into soap library
-- Removed async dependancy and library now returns promises
-- Changed constructor setup
-- Added optional "options" to constructor that is passed to soap library
-- Host config now allows specifying http or https urls
-- Replaced customized ntlm library with httpntlm
+#### Updates in patch 3.0.6
+- Addressed issues in PR #38, cleaned up code.
+- Merged PR for issues #37
+- Merged PR for issues #36 to fix typo in 3.0.2
+- Merged PR for issues #34 to fix typo in 3.0.1
+- Applied temporary fix for Issue #17 by pointing node-soap reference in package.json to modified fork.
 
-#### Updates in version 2.1.0
+#### Updates in version 3.0.0
 
-- Added the ability to specify the directory where XSD and WSDL files are stored
-- Added authentication error handling
-- Added WSDL validation error handling
-- Added logic to determine if XSD and WDSL files have already been downloaded rather than attempting download on each run
+- Resolved issue #31 (courtesy of @eino-makitalo)
+- Resolved issue #29
+- Updated docs to reflect issue discovered in #26
+- Resolved issue #20 #15 with added basic-auth functionality
+- Updated README to include Office 365 connection example and notes on basic-auth
+- The EWS constructor now requires authentication (username, password, host) inside config object. See updated examples below. **Note: This is a breaking change from the method used in version 2.x!**
+- The temp file is now specified in the EWS config object. See updated examples below. **Note: This is a breaking change from the method used in version 2.x!**
 
 #### About
 A extension of node-soap with httpntlm to make queries to Microsoft's Exchange Web Service API work.
 
 ##### Features:
-- Assumes NTLM Authentication over HTTPs (basic auth not currently supported)
+- Assumes NTLM Authentication over HTTPs (basic and bearer auth **now** supported)
 - Connects to configured EWS Host and downloads it's WSDL file so it might be concluded that this is "fairly" version agnostic
 - After downloading the  WSDL file, the wrapper dynamically exposes all EWS SOAP functions
 - Attempts to standardize Microsoft's  WSDL by modifying the file to include missing service name, port, and bindings
@@ -37,21 +41,26 @@ A extension of node-soap with httpntlm to make queries to Microsoft's Exchange W
 var EWS = require('node-ews');
 
 // exchange server connection info
-var username = 'myuser@domain.com';
-var password = 'mypassword';
-var host = 'https://ews.domain.com';
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://ews.domain.com'
+};
 
 // initialize node-ews
-var ews = new EWS(username, password, host);
+var ews = new EWS(ewsConfig);
 
+// define ews api function
 var ewsFunction = 'ExpandDL';
+
+// define ews api function args
 var ewsArgs = {
   'Mailbox': {
     'EmailAddress':'publiclist@domain.com'
   }
 };
 
-// query ews, print resulting JSON to console
+// query EWS and print resulting JSON to console
 ews.run(ewsFunction, ewsArgs)
   .then(result => {
     console.log(JSON.stringify(result));
@@ -59,7 +68,6 @@ ews.run(ewsFunction, ewsArgs)
   .catch(err => {
     console.log(err.message);
   });
-
 ```
 
 #### Example 2: Setting OOO Using SetUserOofSettings
@@ -68,14 +76,19 @@ ews.run(ewsFunction, ewsArgs)
 var EWS = require('node-ews');
 
 // exchange server connection info
-var username = 'myuser@domain.com';
-var password = 'mypassword';
-var host = 'https://ews.domain.com';
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://ews.domain.com'
+};
 
 // initialize node-ews
-var ews = new EWS(username, password, host);
+var ews = new EWS(ewsConfig);
 
+// define ews api function
 var ewsFunction = 'SetUserOofSettings';
+
+// define ews api function args
 var ewsArgs = {
   'Mailbox': {
     'Address':'email@somedomain.com'
@@ -112,14 +125,19 @@ ews.run(ewsFunction, ewsArgs)
 var EWS = require('node-ews');
 
 // exchange server connection info
-var username = 'myuser@domain.com';
-var password = 'mypassword';
-var host = 'https://ews.domain.com';
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://ews.domain.com'
+};
 
 // initialize node-ews
-var ews = new EWS(username, password, host);
+var ews = new EWS(ewsConfig);
 
+// define ews api function
 var ewsFunction = 'GetUserOofSettings';
+
+// define ews api function args
 var ewsArgs = {
   'Mailbox': {
     'Address':'email@somedomain.com'
@@ -136,6 +154,104 @@ ews.run(ewsFunction, ewsArgs)
   });
 ```
 
+#### Example 4: Sending Email (version 3.0.1 required to avoid issue #17)
+##### https://msdn.microsoft.com/en-us/library/office/aa566468
+
+```js
+var EWS = require('node-ews');
+
+// exchange server connection info
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://ews.domain.com'
+};
+
+// initialize node-ews
+var ews = new EWS(ewsConfig);
+
+// define ews api function
+var ewsFunction = 'CreateItem';
+
+// define ews api function args
+var ewsArgs = {
+  "attributes" : {
+    "MessageDisposition" : "SendAndSaveCopy"
+  },
+  "SavedItemFolderId": {
+    "DistinguishedFolderId": {
+      "attributes": {
+        "Id": "sentitems"
+      }
+    }
+  },
+  "Items" : {
+    "Message" : {
+      "ItemClass": "IPM.Note",
+      "Subject" : "Test EWS Email",
+      "Body" : {
+        "attributes": {
+          "BodyType" : "Text"
+        },
+        "$value": "This is a test email"
+      },
+      "ToRecipients" : {
+        "Mailbox" : {
+          "EmailAddress" : "someone@gmail.com"
+        }
+      },
+      "IsRead": "false"
+    }
+  }
+};
+
+// query ews, print resulting JSON to console
+ews.run(ewsFunction, ewsArgs)
+  .then(result => {
+    console.log(JSON.stringify(result));
+  })
+  .catch(err => {
+    console.log(err.stack);
+  });
+```
+
+### Office 365
+
+Below is a template that works with Office 365.
+
+```js
+var EWS = require('node-ews');
+
+// exchange server connection info
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://outlook.office365.com',
+  auth: 'basic'
+};
+
+// initialize node-ews
+var ews = new EWS(ewsConfig);
+
+// define ews api function
+var ewsFunction = 'ExpandDL';
+
+// define ews api function args
+var ewsArgs = {
+  'Mailbox': {
+    'EmailAddress':'publiclist@domain.com'
+  }
+};
+
+// query EWS and print resulting JSON to console
+ews.run(ewsFunction, ewsArgs)
+  .then(result => {
+    console.log(JSON.stringify(result));
+  })
+  .catch(err => {
+    console.log(err.message);
+  });
+```
 
 ### Advanced Options
 
@@ -147,19 +263,26 @@ To add an optional soap header to the Exchange Web Services request, you can pas
 var EWS = require('node-ews');
 
 // exchange server connection info
-var username = 'myuser@domain.com';
-var password = 'mypassword';
-var host = 'https://ews.domain.com';
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://ews.domain.com'
+};
 
 // initialize node-ews
-var ews = new EWS(username, password, host);
+var ews = new EWS(ewsConfig);
 
+// define ews api function
 var ewsFunction = 'GetUserOofSettings';
+
+// define ews api function args
 var ewsArgs = {
   'Mailbox': {
     'Address':'email@somedomain.com'
   }
 };
+
+// define custom soap header
 var ewsSoapHeader = {
   't:RequestServerVersion': {
     attributes: {
@@ -179,9 +302,41 @@ ews.run(ewsFunction, ewsArgs, ewsSoapHeader)
 
 ```
 
+#### Enable Basic Auth instead of NTLM:
+
+```js
+// exchange server connection info
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://ews.domain.com',
+  auth: 'basic'
+};
+
+// initialize node-ews
+var ews = new EWS(ewsConfig);
+```
+
+#### Enable Bearer Auth instead of NTLM:
+
+```js
+// exchange server connection info
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  token: 'oauth_token...',
+  host: 'https://ews.domain.com',
+  auth: 'bearer'
+};
+
+// initialize node-ews
+var ews = new EWS(ewsConfig);
+```
+
 #### Disable SSL verification:
 
 To disable SSL authentication modify the above examples with the following:
+
+**Basic and Bearer Auth**
 
 ```js
 var options = {
@@ -190,17 +345,37 @@ var options = {
 };
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var ews = new EWS(username, password, host, options);
+var ews = new EWS(config, options);
+```
+
+**NTLM**
+
+```js
+var options = {
+ strictSSL: false
+};
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+var ews = new EWS(config, options);
 ```
 
 #### Specify Temp Directory:
 
 By default, node-ews creates a temp directory to store the xsd and wsdl file retrieved from the Exchange Web Service Server.
 
-To override this behavior and use a persistent folder, add the following before you you execute `ews.run()`
+To override this behavior and use a persistent folder add the following to your config object.
 
 ```js
-ews.tempDir = '/path/to/temp/folder';
+// exchange server connection info
+var ewsConfig = {
+  username: 'myuser@domain.com',
+  password: 'mypassword',
+  host: 'https://ews.domain.com',
+  temp: '/path/to/temp/folder'
+};
+
+// initialize node-ews
+var ews = new EWS(ewsConfig);
 ```
 
 # Constructing the ewsArgs JSON Object
@@ -250,73 +425,12 @@ It is important to note the structure of the request. Items such as "BaseShape" 
 
 However, "DistinguishedFolderId" has no closing tag and you must specify an ID. Rather than a direct child object, you must use the JSON child object "attributes".
 
-**Alternatively you can create something like this to convert the EWS Soap Query to a SOAP JSON query:**
+## License
 
-```js
-var xml2js = require('xml2js');
-var when = require('when');
-var _ = require('lodash');
+MIT License Copyright (c) 2016 Nicholas Marus
 
-var util = require('util');
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-function convert(xml) {
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-  var attrkey = 'attributes';
-
-  var parser = new xml2js.Parser({
-    attrkey: attrkey,
-    trim: true,
-    ignoreAttrs: false,
-    explicitRoot: false,
-    explicitCharkey: false,
-    explicitArray: false,
-    explicitChildren: false,
-    tagNameProcessors: [
-      function(tag) {
-        return tag.replace('t:', '');
-      }
-    ]
-  });
-
-  return when.promise((resolve, reject) => {
-    parser.parseString(xml, (err, result) => {
-      if(err) reject(err);
-      else {
-        var ewsFunction = _.keys(result['soap:Body'])[0];
-        var parsed = result['soap:Body'][ewsFunction];
-        parsed[attrkey] = _.omit(parsed[attrkey], ['xmlns', 'xmlns:t']);
-        if(_.isEmpty(parsed[attrkey])) parsed = _.omit(parsed, [attrkey]);
-        resolve(parsed);
-      }
-    });
-  });
-
-}
-
-var xml = '<?xml version="1.0" encoding="utf-8"?>' +
-  '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ' +
-                 'xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">' +
-    '<soap:Body>' +
-      '<FindItem xmlns="http://schemas.microsoft.com/exchange/services/2006/messages" ' +
-                'xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types" ' +
-                'Traversal="Shallow">' +
-        '<ItemShape>' +
-          '<t:BaseShape>IdOnly</t:BaseShape>' +
-        '</ItemShape>' +
-        '<ParentFolderIds>' +
-          '<t:DistinguishedFolderId Id="deleteditems"/>' +
-        '</ParentFolderIds>' +
-      '</FindItem>' +
-    '</soap:Body>' +
-  '</soap:Envelope>';
-
-convert(xml).then(json => {
-  console.log('ewsArgs = ' + util.inspect(json, false, null));
-});
-
-// console output ready for ewsArgs
-
-// ewsArgs = { attributes: { Traversal: 'Shallow' },
-//   ItemShape: { BaseShape: 'IdOnly' },
-//   ParentFolderIds: { DistinguishedFolderId: { attributes: { Id: 'deleteditems' } } } }
-```
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
